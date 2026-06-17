@@ -14,13 +14,13 @@ import torch
 from torch import default_generator, randperm, Generator
 from torch.utils.data import Dataset, Subset, random_split
 
-from pyphoon2.DigitalTyphoonImage import DigitalTyphoonImage
-from pyphoon2.DigitalTyphoonSequence import DigitalTyphoonSequence
-from pyphoon2.DigitalTyphoonUtils import _verbose_print, SPLIT_UNIT, LOAD_DATA, TRACK_COLS, get_seq_str_from_track_filename, parse_image_filename, is_image_file, parse_common_image_filename
+from pyphoon3.DigitalTyphoonImage import DigitalTyphoonImage
+from pyphoon3.DigitalTyphoonSequence import DigitalTyphoonSequence
+from pyphoon3.DigitalTyphoonUtils import _verbose_print, SPLIT_UNIT, LOAD_DATA, TRACK_COLS, get_seq_str_from_track_filename, parse_image_filename, is_image_file, parse_common_image_filename
 
+DEBUG = True
 
 class DigitalTyphoonDataset(Dataset):
-
     def __init__(self,
                  image_dir: str,
                  metadata_dir: str,
@@ -1230,7 +1230,6 @@ class DigitalTyphoonDataset(Dataset):
                 if self.verbose:
                     warnings.warn(f'Sequence {sequence.sequence_str} has only {sequence.get_num_images()} when '
                                   f'it should have {sequence.num_original_images}. If this is intended, ignore this warning.')
-            
 
     def _populate_track_data_into_sequences(self, metadata_dir: str, common_sequences: List[str] = None) -> None:
         """
@@ -1311,8 +1310,7 @@ class DigitalTyphoonDataset(Dataset):
             if total_images > 0:
                 print(f"Overall: {images_with_track}/{total_images} images ({images_with_track/total_images*100:.1f}%) have track data")
 
-    def _read_one_seq_from_metadata(self, sequence_str: str,
-                                    metadata_json: Dict):
+    def _read_one_seq_from_metadata(self, sequence_str: str, metadata_json: Dict):
         """
         Processes one seq_str from the metadata JSON object.
 
@@ -1330,7 +1328,8 @@ class DigitalTyphoonDataset(Dataset):
                                                      num_images,
                                                      transform_func=self.transform_func,
                                                      spectrum=self.spectrum,
-                                                     verbose=self.verbose))
+                                                     verbose=self.verbose,
+                                                     label_type=self.labels))
         self._sequence_str_to_seq_idx[sequence_str] = len(self.sequences) - 1
 
         does_metadata_has_season_key = 'season' not in metadata_json.keys()
@@ -1445,8 +1444,7 @@ class DigitalTyphoonDataset(Dataset):
 
         return lengths
 
-    def _random_split_by_season(self, lengths: Sequence[Union[int, float]],
-                                generator: Optional[Generator] = default_generator) -> List[Subset]:
+    def _random_split_by_season(self, lengths: Sequence[Union[int, float]], generator: Optional[Generator] = default_generator) -> List[Subset]:
         """
         Randomly splits the dataset s.t. each bucket has close to the requested number of indices in each split.
         Images (indices) from a given season are not split across different buckets. Indices within a season
@@ -1513,8 +1511,7 @@ class DigitalTyphoonDataset(Dataset):
         return_indices_sorted.sort(key=lambda x: x[1])
         return [Subset(self, bucket_indices) for _, _, bucket_indices in return_indices_sorted]
 
-    def _random_split_by_sequence(self, lengths: Sequence[Union[int, float]],
-                                  generator: Optional[Generator] = default_generator) -> List[Subset]:
+    def _random_split_by_sequence(self, lengths: Sequence[Union[int, float]], generator: Optional[Generator] = default_generator) -> List[Subset]:
         """
         Splits the dataset by sequence according to the specified proportions.
         

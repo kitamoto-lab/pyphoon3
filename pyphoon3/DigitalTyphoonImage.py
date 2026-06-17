@@ -7,7 +7,7 @@ from datetime import datetime
 import gc
 import psutil
 
-from pyphoon2.DigitalTyphoonUtils import TRACK_COLS
+from pyphoon3.DigitalTyphoonUtils import TRACK_COLS
 
 def print_memory_info():
     vm = psutil.virtual_memory()
@@ -777,7 +777,6 @@ class DigitalTyphoonImage:
             if hasattr(self, 'verbose') and self.verbose:
                 print(f"Error loading image {os.path.basename(image_filepath)}: {str(e)}")
             return np.array([], dtype=np.float32)
-
 
     def debug_track_data(self) -> None:
         """

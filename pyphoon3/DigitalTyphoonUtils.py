@@ -3,7 +3,6 @@ from datetime import datetime
 from enum import Enum
 from typing import Tuple
 
-
 class SPLIT_UNIT(Enum):
     """
     Enum denoting which unit to treat as atomic when splitting the dataset
@@ -22,7 +21,6 @@ class SPLIT_UNIT(Enum):
         """
         return value in cls._value2member_map_
 
-
 class LOAD_DATA(Enum):
     """
     Enum denoting what level of data should be stored in memory
@@ -35,7 +33,6 @@ class LOAD_DATA(Enum):
     @classmethod
     def has_value(cls, value):
         return value in cls._value2member_map_
-
 
 class TRACK_COLS(Enum):
     """
@@ -95,7 +92,6 @@ class TRACK_COLS(Enum):
     def has_value(cls, value):
         return value in cls._value2member_map_
 
-
 def _verbose_print(string: str, verbose: bool):
     """
     Prints the string if verbose is true
@@ -106,7 +102,6 @@ def _verbose_print(string: str, verbose: bool):
     """
     if verbose:
         print(string)
-
 
 def parse_image_filename(filename: str, separator='-') -> Tuple[str, datetime, str]:
     """
@@ -130,7 +125,6 @@ def parse_image_filename(filename: str, separator='-') -> Tuple[str, datetime, s
         raise ValueError(
             f"Filename {filename} does not match the expected format.")
 
-
 def parse_common_image_filename(filename: str, separator='-') -> Tuple[str, datetime, str]:
     """
     Takes the filename of a Digital Typhoon image and parses it to return the date it was taken, the sequence ID
@@ -153,7 +147,6 @@ def parse_common_image_filename(filename: str, separator='-') -> Tuple[str, date
         raise ValueError(
             f"Filename {filename} does not match the expected format.")
 
-
 def get_seq_str_from_track_filename(filename: str) -> str:
     """
     Given a track filename, returns the sequence ID it belongs to.
@@ -171,7 +164,6 @@ def get_seq_str_from_track_filename(filename: str) -> str:
             f"Unexpected file extension: '{ext}'. Expected a '.csv' file.")
 
     return sequence_num
-
 
 def is_image_file(filename: str) -> bool:
     """

@@ -8,14 +8,12 @@ import numpy as np
 from typing import List, Dict
 import pandas as pd
 
-from pyphoon2.DigitalTyphoonImage import DigitalTyphoonImage
-from pyphoon2.DigitalTyphoonUtils import parse_image_filename, is_image_file, TRACK_COLS, parse_common_image_filename
-
+from pyphoon3.DigitalTyphoonImage import DigitalTyphoonImage
+from pyphoon3.DigitalTyphoonUtils import parse_image_filename, is_image_file, TRACK_COLS, parse_common_image_filename
 
 class DigitalTyphoonSequence:
-
     def __init__(self, seq_str: str, start_season: int, num_images: int, transform_func=None,
-                 spectrum='Infrared', verbose=False, load_imgs_into_mem=False):
+                 spectrum='Infrared', verbose=False, load_imgs_into_mem=False, label_type="pressure"):
         """
         Class representing one typhoon sequence from the DigitalTyphoon dataset
 
@@ -30,7 +28,7 @@ class DigitalTyphoonSequence:
         """
         self.verbose = verbose
         self.load_imgs_into_mem = load_imgs_into_mem
-
+        self.label_type = label_type
         self.sequence_str = seq_str  # sequence ID string
         self.season = start_season
         self.num_track_entries = 0
@@ -88,10 +86,13 @@ class DigitalTyphoonSequence:
                 print(f"Warning: filter_func is not callable for sequence {self.get_sequence_str()}, using default filter (accept all images)")
             # Default filter function that accepts all images
             filter_func = lambda img: True
-
+        
         # Ensure we have an absolute directory path
         abs_directory_path = os.path.abspath(directory_path)
         self.set_images_root_path(abs_directory_path)
+
+        self.ignored_invalid_labels = 0
+        label_idx = TRACK_COLS.str_to_value(self.label_type)
 
         # Debug print
         if self.verbose:
@@ -186,9 +187,19 @@ class DigitalTyphoonSequence:
                             load_imgs_into_mem=load_imgs_into_mem,
                             verbose=self.verbose,
                         )
-                        
+
                         # Apply filter
                         try:
+                            # Ignore invalid-label images
+                            if track_data is not None:
+                                try:
+                                    if int(track_data[label_idx]) == -1:
+                                        self.ignored_invalid_labels += 1
+                                        continue
+                                except Exception:
+                                    self.ignored_invalid_labels += 1
+                                    continue
+
                             # Only add if the filter passes
                             if filter_func(image):
                                 if self.verbose:
@@ -212,7 +223,6 @@ class DigitalTyphoonSequence:
                             print(f"Error creating image object for {abs_file_path}: {e}")
                             import traceback
                             traceback.print_exc()
-
             except Exception as e:
                 if self.verbose:
                     warnings.warn(f"Error processing file {file_path}: {str(e)}")
@@ -229,7 +239,7 @@ class DigitalTyphoonSequence:
         # Print warning if there is an inconsistency between number of found images and expected number
         if self.verbose:
             print(f"Final image count for sequence {self.get_sequence_str()}: {len(self.images)}")
-            
+        
             # Check track data counts
             images_with_track = sum(1 for img in self.images if len(img.track_data) > 0)
             print(f"Images with track data: {images_with_track} of {len(self.images)}")
@@ -241,6 +251,9 @@ class DigitalTyphoonSequence:
             if self.num_track_entries > 0 and len(self.images) < self.num_track_entries:
                 warnings.warn(
                     f'Only {len(self.images)} of {self.num_track_entries} track entries have images.')
+            
+            if self.ignored_invalid_labels > 0:
+                print(f"Ignored images (invalid labels) : {self.ignored_invalid_labels}")
 
     def process_seq_img_dirs_into_sequence(self, directory_paths: List[str],
                                            common_image_names: List[str],
@@ -266,6 +279,10 @@ class DigitalTyphoonSequence:
             print(f"  - First few image names: {common_image_names[:3]}")
         if filter_func is None:
             filter_func = lambda img: True
+        
+        self.ignored_invalid_labels = 0
+        label_idx = TRACK_COLS.str_to_value(self.label_type)
+
         # Input validation
         valid_dirs = []
         for directory_path in directory_paths:
@@ -374,10 +391,24 @@ class DigitalTyphoonSequence:
                             load_imgs_into_mem=load_imgs_into_mem, 
                             spectrum=spectrum)
                         
-                        # Apply filter if filter_func
-                        if filter_func(self.datetime_to_image[common_image_date]):
-                            if self.datetime_to_image[common_image_date] not in self.images:
-                                self.images.append(self.datetime_to_image[common_image_date])
+                        # Ignore invalid labels
+                        image_obj = self.datetime_to_image[common_image_date]
+                        track_data = image_obj.track_data
+
+                        if track_data is not None and len(track_data) > 0:
+                            try:
+                                if int(track_data[label_idx]) == -1:
+                                    self.ignored_invalid_labels += 1
+                                    continue
+
+                            except Exception:
+                                self.ignored_invalid_labels += 1
+                                continue
+
+                        # Apply filter_func
+                        if filter_func(image_obj):
+                            if image_obj not in self.images:
+                                self.images.append(image_obj)
                                 images_processed += 1
                     except Exception as e:
                         print(f"  - Error processing image {common_image_name}: {str(e)}")
@@ -390,7 +421,6 @@ class DigitalTyphoonSequence:
         except Exception as e:
             pass
         
-        
         if self.verbose:
             if not self.num_images_match_num_expected():
                 warnings.warn(f'The number of images ({len(self.images)}) does not match the '
@@ -399,6 +429,9 @@ class DigitalTyphoonSequence:
             if len(self.images) < self.num_track_entries:
                 warnings.warn(
                     f'Only {len(self.images)} of {self.num_track_entries} track entries have images.')
+            
+            if self.ignored_invalid_labels > 0:
+                print(f"Ignored images (invalid labels) : {self.ignored_invalid_labels}")
 
     def get_start_season(self) -> int:
         """
